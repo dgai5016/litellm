@@ -4395,6 +4395,7 @@ dependencies = [
  "litellm-cache-response",
  "litellm-core-utils",
  "litellm-error",
+ "litellm-framer",
  "litellm-host",
  "litellm-host-native",
  "litellm-http",
@@ -4402,6 +4403,7 @@ dependencies = [
  "litellm-inference-testing",
  "litellm-llms",
  "litellm-llms-types",
+ "litellm-python-compat",
  "litellm-secret-value",
  "litellm-secrets",
  "litellm-tracing",
@@ -4410,6 +4412,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tokio-tungstenite",
+ "tokio-util",
  "tracing",
  "wiremock",
 ]

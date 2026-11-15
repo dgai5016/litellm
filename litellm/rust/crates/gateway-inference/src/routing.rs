@@ -13,9 +13,10 @@ use axum::{
 use futures_util::{StreamExt, stream::BoxStream};
 use litellm_gateway_auth::{AccessRequest, AuthenticatedRequest, Permissions};
 use litellm_router_core::{
-    Attempt, AttemptError, AttemptFailure, CallError, Capability, ConfigError, Deployment,
-    FailureKind, HostFacts, InMemoryRouterCache, Op, RouterEvent, RouterHost, RouterRequest,
-    RouterResponse, RoutingContext, SelectStage, Served, SuccessReport, Unsupported, resolve,
+    Affinity, Attempt, AttemptError, AttemptFailure, CallError, Capability, ConfigError,
+    Deployment, FailureKind, HostFacts, InMemoryRouterCache, Op, RouterEvent, RouterHost,
+    RouterRequest, RouterResponse, RoutingContext, SelectStage, Served, SuccessReport, Unsupported,
+    resolve,
 };
 use litellm_router_types::Spelled;
 use serde_json::{Map, Value};
@@ -38,6 +39,11 @@ pub(crate) trait RouteAttempt: Send + Sync {
         &self,
         attempt: &Attempt,
     ) -> impl Future<Output = Result<Served<Self::Outcome>, Error>> + Send;
+
+    /// The deployments the request's own ids name.
+    fn affinity(&self) -> Affinity {
+        Affinity::default()
+    }
 }
 
 struct GatewayHost<'a, A> {
@@ -193,7 +199,10 @@ pub(crate) async fn call<A: RouteAttempt>(
     model: &str,
     route: &A,
 ) -> Result<RouterResponse<A::Outcome>, Error> {
-    let request = caller_request(identity, model);
+    let request = RouterRequest {
+        affinity: route.affinity(),
+        ..caller_request(identity, model)
+    };
     let first = first_model(gateway, &request).ok_or_else(|| Error::UnknownModel {
         route: path,
         model: model.to_owned(),
