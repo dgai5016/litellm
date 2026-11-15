@@ -12,11 +12,12 @@ use axum::{
 };
 use futures_util::{StreamExt, stream::BoxStream};
 use litellm_gateway_auth::{AccessRequest, AuthenticatedRequest, Permissions};
+use litellm_redis_store::RouterStores;
 use litellm_router_core::{
     Affinity, Attempt, AttemptError, AttemptFailure, CallError, Capability, ConfigError,
-    Deployment, FailureKind, HostFacts, InMemoryRouterCache, Op, RouterEvent, RouterHost,
-    RouterRequest, RouterResponse, RoutingContext, SelectStage, Served, SuccessReport, Unsupported,
-    precall::PreCallFacts, resolve,
+    Deployment, FailureKind, HostFacts, Op, RouterEvent, RouterHost, RouterRequest, RouterResponse,
+    RoutingContext, SelectStage, Served, SuccessReport, Unsupported, precall::PreCallFacts,
+    resolve,
 };
 use litellm_router_types::Spelled;
 use serde_json::{Map, Value};
@@ -128,7 +129,7 @@ fn failed(error: Error) -> AttemptFailure<Error> {
 impl<A: RouteAttempt> RouterHost for GatewayHost<'_, A> {
     type Response = A::Outcome;
     type Failure = Error;
-    type Cache = InMemoryRouterCache;
+    type Cache = RouterStores;
 
     async fn attempt(
         &self,
@@ -165,7 +166,7 @@ impl<A: RouteAttempt> RouterHost for GatewayHost<'_, A> {
         Ok(authorize(self.identity, target, model).await.is_ok())
     }
 
-    fn cache(&self) -> &InMemoryRouterCache {
+    fn cache(&self) -> &RouterStores {
         &self.gateway.routing
     }
 

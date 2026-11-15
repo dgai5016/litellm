@@ -1,7 +1,7 @@
 // Shared across integration-test targets; each target uses a different subset.
 #![allow(dead_code)]
 
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use axum::{
     Router,
@@ -17,6 +17,7 @@ use litellm_model_catalog::CostMap;
 use litellm_secret_value::SecretValue;
 use litellm_secrets::source::SecretSource;
 
+use litellm_redis_store::{RouterStores, RouterTiers, TierPolicy};
 use litellm_router_core::{DeploymentSpec, RouterConfig};
 use litellm_router_types::RouterSettings;
 use serde_json::{Map, Value, json};
@@ -102,6 +103,19 @@ pub fn app_with_shaping(
     )
 }
 
+fn memory_tiers() -> RouterTiers {
+    let policy = TierPolicy {
+        refresh_after: Duration::from_secs(1),
+        tracked_reads: 1000,
+        default_in_memory_ttl: None,
+    };
+    RouterTiers {
+        cooldowns: policy,
+        usage: policy,
+        default_in_memory_ttl: None,
+    }
+}
+
 fn test_params(model: &str, api_base: &str) -> Map<String, Value> {
     json!({"model": model, "api_base": api_base, "api_key": "test-key", "timeout": 5})
         .as_object()
@@ -171,6 +185,7 @@ pub fn described_group_app(deployments: &[(&str, &str, Value)], router_settings:
             cost_map: CostMap::bundled(),
             shaping: HashMap::new(),
         },
+        Arc::new(RouterStores::new(None, memory_tiers())),
     )
     .unwrap();
     router(Arc::new(gateway)).layer(axum::middleware::from_fn_with_state(
@@ -216,6 +231,7 @@ fn deployment_app(
             cost_map: CostMap::bundled(),
             shaping: HashMap::from([(id, serde_json::from_value(shaping).unwrap())]),
         },
+        Arc::new(RouterStores::new(None, memory_tiers())),
     )
     .unwrap();
     let gateway = match cache {

@@ -6,7 +6,7 @@ mod redis;
 mod secrets;
 pub use error::Error;
 pub use models::{ModelRefresh, Refreshed};
-pub use redis::RedisClients;
+pub use redis::{RedisClients, router_remote};
 
 use std::{sync::Arc, time::Instant};
 
@@ -48,6 +48,10 @@ pub async fn build_serving(config: &Config) -> Result<(Arc<Gateway>, ModelRefres
             .or_else(|| std::env::var(name).ok())
     };
     let (router, shaper) = boot::router(config, &lookup).await?;
+    let routing = Arc::new(litellm_redis_store::RouterStores::new(
+        None,
+        redis::router_tiers(config, &lookup)?,
+    ));
     let settings = &config.litellm_settings;
     let http_settings = HttpSettings::from_layers([
         HttpSettingsLayer::from_environment(&lookup),
@@ -81,8 +85,19 @@ pub async fn build_serving(config: &Config) -> Result<(Arc<Gateway>, ModelRefres
     ));
     let resources = CoreResources::new(pool);
     let models = refresh.table(CostMap::bundled());
-    let gateway = Arc::new(Gateway::new(resources, http, secrets, router, models)?);
+    let gateway = Arc::new(Gateway::new(
+        resources, http, secrets, router, models, routing,
+    )?);
     Ok((gateway, refresh))
+}
+
+/// Share the router's routing state through its Redis, when `router_settings` names one.
+pub fn attach_routing(inference: &Gateway, redis: &RedisClients, config: &Config) {
+    if let Some(client) = &redis.router {
+        inference
+            .routing()
+            .attach(router_remote(client.clone(), config));
+    }
 }
 
 pub fn install_crypto_provider() {

@@ -28,6 +28,7 @@ use litellm_inference_responses::ResponsesRoute;
 use litellm_inference_transcription::AudioTranscriptionRoute;
 use litellm_llms::base_llm::ocr::{handler::OcrClient, settings::OcrSettings};
 use litellm_model_catalog::CostMap;
+use litellm_redis_store::RouterStores;
 use litellm_secrets::source::SecretSource;
 
 pub use error::{BodyError, Error};
@@ -44,8 +45,9 @@ pub struct ModelTable {
 
 pub struct Gateway {
     cache: Option<Arc<dyn litellm_cache_response::ResponseCacheService>>,
-    /// Cooldowns, allowed-fails counters and per-minute usage of the deployments, in this process.
-    routing: Arc<litellm_router_core::InMemoryRouterCache>,
+    /// Cooldowns, allowed-fails counters and per-minute usage of the deployments, shared through
+    /// the router's Redis once one is attached.
+    routing: Arc<RouterStores>,
     models: ArcSwap<ModelTable>,
     pub audio_transcription: AudioTranscriptionRoute,
     pub chat_completions: ChatCompletionsRoute,
@@ -66,6 +68,11 @@ impl Gateway {
         }
     }
 
+    /// The routing state the router reads and writes, for the host to attach Redis to.
+    pub fn routing(&self) -> &RouterStores {
+        &self.routing
+    }
+
     /// The model table in force now.
     pub fn models(&self) -> Arc<ModelTable> {
         self.models.load_full()
@@ -82,12 +89,13 @@ impl Gateway {
         secrets: Arc<dyn SecretSource>,
         router: litellm_router_core::Router,
         models: ModelTable,
+        routing: Arc<RouterStores>,
     ) -> Result<Self, litellm_http::Error> {
         let provider = resources.pool.client(&http, ClientVariant::Provider)?;
         let auth = resources.auth.clone();
         Ok(Self {
             cache: None,
-            routing: Arc::default(),
+            routing,
             models: ArcSwap::from_pointee(models),
             audio_transcription: AudioTranscriptionRoute::new(
                 provider.clone(),

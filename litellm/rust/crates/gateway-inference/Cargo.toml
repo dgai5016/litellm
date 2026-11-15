@@ -29,6 +29,7 @@ litellm-llms.workspace = true
 litellm-core-utils.workspace = true
 litellm-token-counter = { workspace = true, features = ["tiktoken"] }
 litellm-model-catalog.workspace = true
+litellm-redis-store.workspace = true
 litellm-router-core.workspace = true
 litellm-router-types.workspace = true
 litellm-secrets.workspace = true
