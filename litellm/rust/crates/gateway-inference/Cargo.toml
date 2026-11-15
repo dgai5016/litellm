@@ -26,6 +26,8 @@ litellm-host-http.workspace = true
 litellm-host.workspace = true
 litellm-http.workspace = true
 litellm-llms.workspace = true
+litellm-core-utils.workspace = true
+litellm-token-counter = { workspace = true, features = ["tiktoken"] }
 litellm-model-catalog.workspace = true
 litellm-router-core.workspace = true
 litellm-router-types.workspace = true
@@ -34,7 +36,7 @@ litellm-llms-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true, features = ["rt", "time"] }
 tracing.workspace = true
 
 [dev-dependencies]

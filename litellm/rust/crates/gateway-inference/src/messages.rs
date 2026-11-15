@@ -126,6 +126,10 @@ struct MessagesAttempt<'a> {
 impl RouteAttempt for MessagesAttempt<'_> {
     type Outcome = (Ran<Messages>, CacheHeaders);
 
+    fn body(&self) -> Value {
+        Value::Object(self.body.clone())
+    }
+
     async fn run(&self, attempt: &Attempt) -> Result<Served<Self::Outcome>, Error> {
         let deployment = &attempt.deployment;
         let call = MessagesCall {

@@ -10,6 +10,7 @@ mod chat_completions;
 mod error;
 pub mod messages;
 mod ocr;
+mod precall;
 mod request;
 mod responses;
 mod routing;

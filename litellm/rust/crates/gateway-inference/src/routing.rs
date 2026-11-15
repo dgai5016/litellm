@@ -16,17 +16,17 @@ use litellm_router_core::{
     Affinity, Attempt, AttemptError, AttemptFailure, CallError, Capability, ConfigError,
     Deployment, FailureKind, HostFacts, InMemoryRouterCache, Op, RouterEvent, RouterHost,
     RouterRequest, RouterResponse, RoutingContext, SelectStage, Served, SuccessReport, Unsupported,
-    resolve,
+    precall::PreCallFacts, resolve,
 };
 use litellm_router_types::Spelled;
 use serde_json::{Map, Value};
 
 use crate::{Error, Gateway};
 
-/// What the gateway's host serves: every route it mounts, and none of the host steps a setting
-/// may need.
+/// What the gateway's host serves: every route it mounts, and the pre-call facts from its model
+/// table.
 pub const GATEWAY: HostFacts = HostFacts {
-    capabilities: &[],
+    capabilities: &[Capability::PreCallFacts],
     supports: |_, _| true,
 };
 
@@ -43,6 +43,11 @@ pub(crate) trait RouteAttempt: Send + Sync {
     /// The deployments the request's own ids name.
     fn affinity(&self) -> Affinity {
         Affinity::default()
+    }
+
+    /// The request params the pre-call checks read.
+    fn body(&self) -> Value {
+        Value::Null
     }
 }
 
@@ -145,6 +150,14 @@ impl<A: RouteAttempt> RouterHost for GatewayHost<'_, A> {
         .into())
     }
 
+    async fn pre_call_facts(
+        &self,
+        ctx: &RoutingContext<'_>,
+        candidates: &[Arc<Deployment>],
+    ) -> Result<PreCallFacts, litellm_router_core::Error> {
+        Ok(crate::precall::facts(self.gateway, ctx, candidates).await)
+    }
+
     async fn allow_fallback(&self, target: &str) -> Result<bool, AttemptError> {
         let Some(model) = first_model(self.gateway, &caller_request(self.identity, target)) else {
             return Ok(true);
@@ -201,6 +214,7 @@ pub(crate) async fn call<A: RouteAttempt>(
 ) -> Result<RouterResponse<A::Outcome>, Error> {
     let request = RouterRequest {
         affinity: route.affinity(),
+        body: route.body(),
         ..caller_request(identity, model)
     };
     let first = first_model(gateway, &request).ok_or_else(|| Error::UnknownModel {
