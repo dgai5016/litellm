@@ -10,9 +10,10 @@ use axum::{
     response::Response,
 };
 use futures_util::future::BoxFuture;
-use litellm_gateway_inference::{GATEWAY, Gateway, router};
+use litellm_gateway_inference::{GATEWAY, Gateway, ModelTable, router};
 use litellm_http::{HttpClientPool, HttpSettings, Resolution, media::PublicDnsResolver};
 use litellm_inference::resources::CoreResources;
+use litellm_model_catalog::CostMap;
 use litellm_secret_value::SecretValue;
 use litellm_secrets::source::SecretSource;
 
@@ -151,7 +152,10 @@ pub fn group_app(deployments: &[(&str, &str)], router_settings: Value) -> Router
         Resolution::from(&HttpSettings::default()).config,
         Arc::new(NoSecrets),
         models,
-        HashMap::new(),
+        ModelTable {
+            cost_map: CostMap::bundled(),
+            shaping: HashMap::new(),
+        },
     )
     .unwrap();
     router(Arc::new(gateway)).layer(axum::middleware::from_fn_with_state(
@@ -193,7 +197,10 @@ fn deployment_app(
         http,
         secrets,
         models,
-        HashMap::from([(id, serde_json::from_value(shaping).unwrap())]),
+        ModelTable {
+            cost_map: CostMap::bundled(),
+            shaping: HashMap::from([(id, serde_json::from_value(shaping).unwrap())]),
+        },
     )
     .unwrap();
     let gateway = match cache {
