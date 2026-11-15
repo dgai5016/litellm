@@ -151,63 +151,6 @@ impl fmt::Debug for GeneralSettings {
 
 #[derive(Clone, Default, Deserialize)]
 #[serde(default)]
-pub struct RouterSettings {
-    pub routing_strategy: Option<String>,
-    pub routing_strategy_args: Option<Object>,
-    pub routing_groups: Option<Box<[Object]>>,
-    pub retry_policy: Option<Object>,
-    pub model_group_retry_policy: Option<Object>,
-    pub model_group_affinity_config: Option<Object>,
-    pub allowed_fails: Option<u64>,
-    pub cooldown_time: Option<f64>,
-    pub num_retries: Option<u64>,
-    pub timeout: Option<f64>,
-    pub max_retries: Option<u64>,
-    pub retry_after: Option<f64>,
-    pub fallbacks: Option<Box<[Object]>>,
-    pub context_window_fallbacks: Option<Box<[Object]>>,
-    pub model_group_alias: Option<Object>,
-    pub enable_tag_filtering: Option<bool>,
-    pub weights: Option<Object>,
-    pub tag_routing_prefix: Option<String>,
-    pub optional_pre_call_checks: Option<Box<[String]>>,
-    #[serde(flatten)]
-    pub additional_fields: AdditionalFields,
-}
-
-impl fmt::Debug for RouterSettings {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("RouterSettings")
-            .field("routing_strategy", &self.routing_strategy)
-            .field("routing_strategy_args", &self.routing_strategy_args)
-            .field("routing_groups", &self.routing_groups)
-            .field("retry_policy", &self.retry_policy)
-            .field("model_group_retry_policy", &self.model_group_retry_policy)
-            .field(
-                "model_group_affinity_config",
-                &self.model_group_affinity_config,
-            )
-            .field("allowed_fails", &self.allowed_fails)
-            .field("cooldown_time", &self.cooldown_time)
-            .field("num_retries", &self.num_retries)
-            .field("timeout", &self.timeout)
-            .field("max_retries", &self.max_retries)
-            .field("retry_after", &self.retry_after)
-            .field("fallbacks", &self.fallbacks)
-            .field("context_window_fallbacks", &self.context_window_fallbacks)
-            .field("model_group_alias", &self.model_group_alias)
-            .field("enable_tag_filtering", &self.enable_tag_filtering)
-            .field("weights", &self.weights)
-            .field("tag_routing_prefix", &self.tag_routing_prefix)
-            .field("optional_pre_call_checks", &self.optional_pre_call_checks)
-            .field("additional_fields", &self.additional_fields.keys())
-            .finish()
-    }
-}
-
-#[derive(Clone, Default, Deserialize)]
-#[serde(default)]
 pub struct LiteLlmSettings {
     pub ssl_verify: Option<Spelled<bool>>,
     pub ssl_certificate: Option<String>,

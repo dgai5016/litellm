@@ -1,7 +1,8 @@
 //! The proxy's inference endpoints as an axum [`Router`] a server mounts.
 //!
 //! Authentication, rate limiting and logging are the mounting server's layers; this crate
-//! maps a public model name to its deployment and runs the core route.
+//! routes a public model name through `litellm-router-core` (pick, retries, fallbacks, cooldowns)
+//! and runs the core route on each attempt.
 
 mod audio_transcription;
 mod caching;
@@ -11,14 +12,15 @@ pub mod messages;
 mod ocr;
 mod request;
 mod responses;
+mod routing;
 
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{Router, routing::post};
 use litellm_http::{ClientVariant, HttpClientConfig, media::UrlPolicy};
 use litellm_inference::resources::CoreResources;
 use litellm_inference_chat::ChatCompletionsRoute;
-use litellm_inference_messages::MessagesRoute;
+use litellm_inference_messages::{MessagesRoute, MessagesShaping};
 use litellm_inference_ocr::OcrRoute;
 use litellm_inference_responses::ResponsesRoute;
 use litellm_inference_transcription::AudioTranscriptionRoute;
@@ -26,17 +28,21 @@ use litellm_llms::base_llm::ocr::{handler::OcrClient, settings::OcrSettings};
 use litellm_secrets::source::SecretSource;
 
 pub use error::{BodyError, Error};
-pub use litellm_router::{Deployment, Router as ModelRouter};
 pub use request::{JsonObject, RequestId};
+pub use routing::GATEWAY;
 
 pub struct Gateway {
     cache: Option<Arc<dyn litellm_cache_response::ResponseCacheService>>,
+    /// Cooldowns, allowed-fails counters and per-minute usage of the deployments, in this process.
+    routing: Arc<litellm_router_core::InMemoryRouterCache>,
+    /// How the messages route shapes a call to each deployment, by deployment id.
+    shaping: HashMap<String, MessagesShaping>,
     pub audio_transcription: AudioTranscriptionRoute,
     pub chat_completions: ChatCompletionsRoute,
     pub messages: MessagesRoute,
     pub ocr: OcrRoute,
     pub responses: ResponsesRoute,
-    pub models: ModelRouter,
+    pub router: litellm_router_core::Router,
     pub secrets: Arc<dyn SecretSource>,
     pub resources: CoreResources,
     pub http: HttpClientConfig,
@@ -50,16 +56,24 @@ impl Gateway {
         }
     }
 
+    /// How the messages route shapes a call to deployment `id`.
+    pub(crate) fn shaping(&self, id: &str) -> MessagesShaping {
+        self.shaping.get(id).cloned().unwrap_or_default()
+    }
+
     pub fn new(
         resources: CoreResources,
         http: HttpClientConfig,
         secrets: Arc<dyn SecretSource>,
-        models: ModelRouter,
+        router: litellm_router_core::Router,
+        shaping: HashMap<String, MessagesShaping>,
     ) -> Result<Self, litellm_http::Error> {
         let provider = resources.pool.client(&http, ClientVariant::Provider)?;
         let auth = resources.auth.clone();
         Ok(Self {
             cache: None,
+            routing: Arc::default(),
+            shaping,
             audio_transcription: AudioTranscriptionRoute::new(
                 provider.clone(),
                 auth.clone(),
@@ -80,7 +94,7 @@ impl Gateway {
                 OcrSettings::default(),
                 secrets.clone(),
             )?),
-            models,
+            router,
             secrets,
             resources,
             http,

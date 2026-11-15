@@ -11,15 +11,17 @@ use std::{fmt, path::Path};
 use serde::Deserialize;
 
 pub use error::Error;
-pub use litellm_router_types::{LitellmParams, Spelled};
+pub use litellm_router_types::{LitellmParams, RouterSettings, Spelled};
 pub use mcp::{McpAuth, McpServer, McpTransport};
 pub use model::Model;
 pub use redis::{CacheSettings, RedisSettings};
 pub use settings::{
-    ClickHouseStoreSettings, GeneralSettings, LiteLlmSettings, RouterSettings, TracingSettings,
+    ClickHouseStoreSettings, GeneralSettings, LiteLlmSettings, TracingSettings,
     TracingStoreSettings,
 };
 pub use value::{AdditionalFields, Object, Value};
+
+pub const ENV_REFERENCE_PREFIX: &str = "os.environ/";
 
 #[derive(Clone, Default, Deserialize)]
 #[serde(default)]

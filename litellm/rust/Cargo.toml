@@ -11,7 +11,6 @@ repository = "https://github.com/BerriAI/litellm"
 [workspace.dependencies]
 litellm-config = { path = "crates/config" }
 litellm-error = { path = "crates/error" }
-litellm-router = { path = "crates/router" }
 litellm-router-types = { path = "crates/router-types" }
 litellm-router-core = { path = "crates/router-core" }
 litellm-tracing = { path = "crates/tracing" }
